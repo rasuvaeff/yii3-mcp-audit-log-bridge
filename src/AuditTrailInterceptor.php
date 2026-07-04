@@ -95,6 +95,7 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
             return null;
         }
 
+        /** @var mixed $version */
         $version = $info['version'] ?? null;
 
         return is_string($version) && $version !== '' ? $name . ' ' . $version : $name;

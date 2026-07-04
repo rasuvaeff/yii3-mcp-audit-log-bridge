@@ -8,7 +8,10 @@
         "summary": "build/infection-summary.log"
     },
     "testFramework": "testo",
-    "minMsi": 85,
+    // 2 known survivors are timing-equivalent: DecrementInteger/IncrementInteger
+    // on the ns->ms divisor (intdiv by 999999 vs 1_000_000 is identical at
+    // test-scale durations). Honest ceiling is 26/28 ~ 92.8%.
+    "minMsi": 90,
     "mutators": {
         "@default": true
     }

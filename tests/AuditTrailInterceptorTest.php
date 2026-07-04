@@ -64,11 +64,18 @@ final class AuditTrailInterceptorTest
         Assert::same($changes['orderId'], '42');
     }
 
-    public function recordsFailureAndKeepsTheErrorEnvelope(): void
+    public function recordsFailureBeforeTheErrorPropagates(): void
     {
-        $result = $this->tester()->callTool('order.fail');
+        $caught = null;
 
-        Assert::true($result['isError']);
+        try {
+            $this->tester()->callTool('order.fail');
+        } catch (RuntimeException $caught) {
+        }
+
+        // the SDK turns the tool exception into a JSON-RPC error as usual —
+        // the bridge audited the ORIGINAL message before rethrowing
+        Assert::notNull($caught);
 
         $changes = $this->changesByField($this->singleEvent());
         Assert::same($changes['mcp.outcome'], 'error');
@@ -94,7 +101,7 @@ final class AuditTrailInterceptorTest
         $caught = null;
 
         try {
-            $interceptor->intercept($context, static fn (): mixed => throw new RuntimeException('boom'));
+            $interceptor->intercept($context, static fn(): mixed => throw new RuntimeException('boom'));
         } catch (RuntimeException $caught) {
         }
 
@@ -108,7 +115,7 @@ final class AuditTrailInterceptorTest
         $interceptor = new AuditTrailInterceptor($this->auditLogger());
         $context = new ToolCallContext(toolName: 'x', arguments: []);
 
-        Assert::same($interceptor->intercept($context, static fn (): string => 'ok'), 'ok');
+        Assert::same($interceptor->intercept($context, static fn(): string => 'ok'), 'ok');
 
         $event = $this->singleEvent();
         Assert::null($event->getActor()->getId());
@@ -121,7 +128,7 @@ final class AuditTrailInterceptorTest
         $session = new FakeSession(['client_info' => ['name' => 'claude']]);
         $context = new ToolCallContext(toolName: 'x', arguments: [], session: $session);
 
-        $interceptor->intercept($context, static fn (): string => 'ok');
+        $interceptor->intercept($context, static fn(): string => 'ok');
 
         Assert::same($this->singleEvent()->getActor()->getName(), 'claude');
     }
@@ -132,9 +139,25 @@ final class AuditTrailInterceptorTest
         $session = new FakeSession(['client_info' => ['name' => '', 'version' => '1.0']]);
         $context = new ToolCallContext(toolName: 'x', arguments: [], session: $session);
 
-        $interceptor->intercept($context, static fn (): string => 'ok');
+        $interceptor->intercept($context, static fn(): string => 'ok');
 
         Assert::null($this->singleEvent()->getActor()->getName());
+    }
+
+    public function durationReflectsWallTimeOfTheWrappedChain(): void
+    {
+        $interceptor = new AuditTrailInterceptor($this->auditLogger());
+        $context = new ToolCallContext(toolName: 'x', arguments: []);
+
+        $interceptor->intercept($context, static function (): string {
+            usleep(15_000);
+
+            return 'ok';
+        });
+
+        $duration = $this->changesByField($this->singleEvent())['mcp.duration_ms'];
+        Assert::true($duration >= 10);
+        Assert::true($duration < 10_000);
     }
 
     public function actorAndSubjectTypesAreConfigurable(): void
@@ -142,7 +165,7 @@ final class AuditTrailInterceptorTest
         $interceptor = new AuditTrailInterceptor($this->auditLogger(), actorType: 'agent', subjectType: 'operation');
         $context = new ToolCallContext(toolName: 'x', arguments: []);
 
-        $interceptor->intercept($context, static fn (): string => 'ok');
+        $interceptor->intercept($context, static fn(): string => 'ok');
 
         $event = $this->singleEvent();
         Assert::same($event->getActor()->getType(), 'agent');
