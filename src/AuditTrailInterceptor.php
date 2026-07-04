@@ -76,13 +76,14 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
         }
 
         $sessionId = $context->session?->getId()->toRfc4122();
+        $clientName = $this->clientName($context);
 
         $this->auditLogger->log(
-            actor: new AuditActor(type: $this->actorType, id: $sessionId, name: $this->clientName($context)),
+            actor: new AuditActor(type: $this->actorType, id: $sessionId, name: $clientName),
             action: self::ACTION,
             subject: new AuditSubject(type: $this->subjectType, id: $context->toolName),
             changes: new AuditChangeSet($changes),
-            metadata: new AuditMetadata(requestId: $sessionId, userAgent: $this->clientName($context)),
+            metadata: new AuditMetadata(requestId: $sessionId, userAgent: $clientName),
         );
     }
 
