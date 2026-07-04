@@ -1,0 +1,46 @@
+# yii3-mcp-audit-log-bridge
+
+AI audit trail for MCP servers: records every rasuvaeff/yii3-mcp tools/call
+into rasuvaeff/yii3-audit-log.
+
+## Install
+
+```bash
+composer require rasuvaeff/yii3-mcp-audit-log-bridge
+```
+
+## Rules
+
+- One audit event per tools/call (all registration paths: attribute tools,
+  OpenAPI bridge, configurators). Failures are recorded AND rethrown — the
+  MCP error envelope is unchanged.
+- Arguments are masked by FIELD NAME only (AuditLogger's
+  SensitiveValueMasker; not recursive): top-level argument `password` =>
+  `***`, a secret nested in an array value is stored as-is.
+- Call metadata change-fields are prefixed `mcp.` (`mcp.outcome`,
+  `mcp.duration_ms`, `mcp.error`) so they never collide with argument names.
+
+## API reference
+
+```php
+use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
+
+new AuditTrailInterceptor(
+    auditLogger: $auditLogger,    // Rasuvaeff\Yii3AuditLog\AuditLogger (writer+clock+masker)
+    actorType: 'mcp-client',      // default
+    subjectType: 'mcp-tool',      // default
+);
+// implements Rasuvaeff\Yii3Mcp\Interceptor\ToolCallInterceptorInterface
+
+// Via config-plugin params of yii3-mcp (DI resolves the FQCN):
+// 'rasuvaeff/yii3-mcp' => ['interceptors' => [AuditTrailInterceptor::class]]
+
+// Event mapping:
+// actor    = AuditActor(actorType, id: session uuid|null, name: 'client-name version'|null)
+// action   = 'mcp.tools.call'
+// subject  = AuditSubject(subjectType, id: tool name)
+// changes  = each argument as its own field (old=null, new=value)
+//            + 'mcp.outcome' ('success'|'error') + 'mcp.duration_ms' (int)
+//            + 'mcp.error' (exception message, only on failure)
+// metadata = AuditMetadata(requestId: session uuid, userAgent: client name)
+```
