@@ -41,17 +41,8 @@ docker run --rm -v "$PWD":/app -w /app composer:2 composer release-check
 Or with Make: `make build`, `make cs-fix`, `make psalm`, `make test`,
 `make test-coverage`, `make mutation`, `make release-check`.
 
-While `rasuvaeff/yii3-mcp ^1.1` is unpublished, install with an injected
-path repo from the monorepo root (composer.json stays publish-clean):
-
-```bash
-docker run --rm -v /home/rasuvaeff/projects/rasuvaeff:/repo -w /repo/yii3-mcp-audit-log-bridge composer:2 sh -c '
-  git config --global --add safe.directory "*"
-  composer config repositories.mcp "{\"type\":\"path\",\"url\":\"../yii3-mcp\",\"options\":{\"versions\":{\"rasuvaeff/yii3-mcp\":\"1.1.0\"}}}"
-  composer config repositories.audit "{\"type\":\"path\",\"url\":\"../yii3-audit-log\",\"options\":{\"versions\":{\"rasuvaeff/yii3-audit-log\":\"1.0.0\"}}}"
-  composer update -q
-  git checkout composer.json && rm -f composer.lock'
-```
+Both runtime dependencies (`rasuvaeff/yii3-mcp`, `rasuvaeff/yii3-audit-log`)
+are on Packagist — a plain `composer install` works, no path repos needed.
 
 ## Invariants & gotchas
 
