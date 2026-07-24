@@ -12,6 +12,11 @@ use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 use Rasuvaeff\Yii3McpAuditLogBridge\Benchmarks\Support\SystemClock;
 use Testo\Bench;
 
+/**
+ * Measures the per-call overhead the audit interceptor adds on top of a bare
+ * tool handler (NullAuditWriter, so only the bridge's own work — change-set
+ * building, masking, clock reads — is on the clock).
+ */
 final class AuditTrailInterceptorBench
 {
     private AuditTrailInterceptor $interceptor;
@@ -31,9 +36,20 @@ final class AuditTrailInterceptorBench
         );
     }
 
-    #[Bench]
+    #[Bench(
+        callables: [
+            'bare handler' => [self::class, 'bareToolCall'],
+        ],
+        calls: 100_000,
+        iterations: 5,
+    )]
     public function interceptSuccessfulCall(): void
     {
         $this->interceptor->intercept($this->context, static fn (): string => 'paid');
+    }
+
+    public static function bareToolCall(): string
+    {
+        return 'paid';
     }
 }
