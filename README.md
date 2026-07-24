@@ -53,9 +53,13 @@ configurator-registered handlers — produces one audit event:
 | actor | type `mcp-client` (configurable), id = MCP session id, name = client from the initialize handshake (`claude-code 1.2`) |
 | action | `mcp.tools.call` |
 | subject | type `mcp-tool` (configurable), id = tool name |
-| changes | one field per tool argument + `mcp.outcome` (`success`/`error`), `mcp.duration_ms`, `mcp.error` (message, on failure) |
+| changes | one field per tool argument + `mcp.outcome` (`success`/`rejected`/`error`), `mcp.duration_ms`, `mcp.error` (message, on failure) |
 | metadata | requestId = session id, userAgent = client name |
 
+`mcp.outcome` follows yii3-mcp's shared `CallOutcome` vocabulary:
+`rejected` marks a client-visible refusal (rate limit, RBAC, session
+budget — a thrown `ToolCallException`), `error` an unexpected failure —
+so policy rejections are distinguishable from crashes in audit queries.
 Failures are recorded and **rethrown** — the MCP error envelope the agent
 sees is unchanged, and a call that fails is still audited.
 

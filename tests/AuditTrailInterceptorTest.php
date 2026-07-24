@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge\Tests;
 
+use Mcp\Exception\ToolCallException;
 use Mcp\Server;
 use Mcp\Server\Session\InMemorySessionStore;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -80,6 +81,25 @@ final class AuditTrailInterceptorTest
         $changes = $this->changesByField($this->singleEvent());
         Assert::same($changes['mcp.outcome'], 'error');
         Assert::same($changes['mcp.error'], 'upstream unavailable');
+    }
+
+    public function clientVisibleRejectionIsRecordedAsRejectedNotError(): void
+    {
+        $interceptor = new AuditTrailInterceptor($this->auditLogger());
+        $context = new ToolCallContext(toolName: 'x', arguments: []);
+
+        $caught = null;
+
+        try {
+            $interceptor->intercept($context, static fn(): mixed => throw new ToolCallException('rate limit exceeded'));
+        } catch (ToolCallException $caught) {
+        }
+
+        Assert::notNull($caught);
+
+        $changes = $this->changesByField($this->singleEvent());
+        Assert::same($changes['mcp.outcome'], 'rejected');
+        Assert::same($changes['mcp.error'], 'rate limit exceeded');
     }
 
     public function sessionIdBecomesActorIdAndRequestId(): void

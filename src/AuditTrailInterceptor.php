@@ -10,6 +10,7 @@ use Rasuvaeff\Yii3AuditLog\AuditChangeSet;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
 use Rasuvaeff\Yii3AuditLog\AuditMetadata;
 use Rasuvaeff\Yii3AuditLog\AuditSubject;
+use Rasuvaeff\Yii3Mcp\Interceptor\CallOutcome;
 use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallInterceptorInterface;
 use Throwable;
@@ -17,16 +18,19 @@ use Throwable;
 /**
  * Records every MCP tools/call into the audit trail: which agent (client
  * info from the initialize handshake), which tool, the arguments, the
- * outcome (success or the error message) and the duration.
+ * outcome and the duration.
  *
  * Each tool argument becomes its own change field, so the AuditLogger's
  * SensitiveValueMasker masks arguments named `password`, `token` etc. the
  * same way it masks any other audited value. Call metadata fields are
  * prefixed with `mcp.` to stay clear of argument names.
  *
- * The interceptor never swallows failures: a tool exception is recorded
- * with `mcp.outcome = error` and rethrown, so the MCP error envelope the
- * agent sees is unchanged.
+ * `mcp.outcome` follows the core's shared {@see CallOutcome} vocabulary:
+ * `success`, `rejected` (a client-visible refusal — rate limit, RBAC,
+ * budget, or the tool itself throwing ToolCallException) or `error` (an
+ * unexpected failure). The interceptor never swallows failures: the
+ * exception is recorded and rethrown, so the MCP error envelope the agent
+ * sees is unchanged.
  *
  * @api
  */
@@ -49,17 +53,17 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
             /** @var mixed $result */
             $result = $next();
         } catch (Throwable $exception) {
-            $this->record($context, $startedAt, error: $exception->getMessage());
+            $this->record($context, $startedAt, outcome: CallOutcome::fromThrowable($exception), error: $exception->getMessage());
 
             throw $exception;
         }
 
-        $this->record($context, $startedAt, error: null);
+        $this->record($context, $startedAt, outcome: CallOutcome::Success, error: null);
 
         return $result;
     }
 
-    private function record(ToolCallContext $context, int $startedAt, ?string $error): void
+    private function record(ToolCallContext $context, int $startedAt, CallOutcome $outcome, ?string $error): void
     {
         $changes = [];
 
@@ -68,7 +72,7 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
             $changes[] = new AuditChange(field: $name, oldValue: null, newValue: $value);
         }
 
-        $changes[] = new AuditChange(field: 'mcp.outcome', oldValue: null, newValue: $error === null ? 'success' : 'error');
+        $changes[] = new AuditChange(field: 'mcp.outcome', oldValue: null, newValue: $outcome->value);
         $changes[] = new AuditChange(field: 'mcp.duration_ms', oldValue: null, newValue: intdiv(hrtime(true) - $startedAt, 1_000_000));
 
         if ($error !== null) {
