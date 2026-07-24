@@ -40,7 +40,7 @@ new AuditTrailInterceptor(
 // action   = 'mcp.tools.call'
 // subject  = AuditSubject(subjectType, id: tool name)
 // changes  = each argument as its own field (old=null, new=value)
-//            + 'mcp.outcome' ('success'|'error') + 'mcp.duration_ms' (int)
+//            + 'mcp.outcome' ('success'|'rejected'|'error', yii3-mcp CallOutcome) + 'mcp.duration_ms' (int)
 //            + 'mcp.error' (exception message, only on failure)
 // metadata = AuditMetadata(requestId: session uuid, userAgent: client name)
 ```

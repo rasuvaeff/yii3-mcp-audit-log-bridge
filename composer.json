@@ -25,7 +25,7 @@
     "require": {
         "php": "8.3 - 8.5",
         "rasuvaeff/yii3-audit-log": "^1.0",
-        "rasuvaeff/yii3-mcp": "^1.1"
+        "rasuvaeff/yii3-mcp": "^1.6"
     },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.51",
