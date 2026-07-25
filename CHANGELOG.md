@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mcp.client` and `mcp.client_id` (the endpoint-secret client identity from
   yii3-mcp, previously never audited) — so crediting the user loses nothing.
   `mcp.client_id` is omitted when the transport carries none (e.g. stdio).
+- Docs: `README.ru.md` rewritten as a faithful mirror of `README.md` — the
+  bulk-localized version carried machine-translation artifacts (`@@ЛИНИЯ@@`
+  markers, a mangled package name, "введите `mcp-client`" for "type
+  `mcp-client`", Security bullets rendered as em-dashes).
 
 ## 1.1.0 — 2026-07-24
 
