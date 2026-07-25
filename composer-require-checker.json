@@ -1,0 +1,5 @@
+{
+    "symbol-whitelist": [
+        "Rasuvaeff\\Yii3McpRbacBridge\\IdentitySourceInterface"
+    ]
+}

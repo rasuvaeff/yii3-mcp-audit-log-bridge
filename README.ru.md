@@ -17,8 +17,9 @@
 | Требование | Версия |
  |-------------|---------|
  | PHP | 8,3 – 8,5 |
- | `расуваефф/yii3-mcp` | `^1.1` |
- | `rasuvaeff/yii3-audit-log` | `^1.0` | @@ЛИНИЯ@@
+ | `rasuvaeff/yii3-mcp` | `^1.6` |
+ | `rasuvaeff/yii3-audit-log` | `^1.0` |
+ | `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.0`, опционально — только для `IdentityAuditActorResolver` |
 ## Установка
 ```bash
 composer require rasuvaeff/yii3-mcp-audit-log-bridge
@@ -40,10 +41,10 @@ use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 
  | Поле аудита | Значение |
  |---|---|
- | актер | введите `mcp-client` (настраиваемый), id = идентификатор сеанса MCP, name = клиент из инициализирующего рукопожатия (`claude-code 1.2`) |
+ | actor | определяется через `AuditActorResolverInterface`; по умолчанию тип `mcp-client`, id = идентификатор MCP-сессии, name = клиент из initialize-хендшейка (`claude-code 1.2`) |
  | действие | `mcp.tools.call` |
- | предмет | введите `mcp-tool` (настраиваемый), id = имя инструмента |
- | изменения | одно поле на каждый аргумент инструмента + `mcp.outcome` (`success`/`rejected`/`error`), `mcp.duration_ms`, `mcp.error` (сообщение, при сбое) |
+ | предмет | тип `mcp-tool` (настраиваемый), id = имя инструмента |
+ | изменения | одно поле на каждый аргумент инструмента + `mcp.outcome` (`success`/`rejected`/`error`), `mcp.duration_ms`, `mcp.session`, `mcp.client`, `mcp.client_id` (если транспорт его несёт), `mcp.error` (сообщение, при сбое) |
  | метаданные | requestId = идентификатор сеанса, userAgent = имя клиента |
 
 `mcp.outcome` следует единому словарю `CallOutcome` из yii3-mcp:
@@ -52,6 +53,64 @@ use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 отличимы от падений в audit-запросах. Сбои записываются и
 **перебрасываются** — MCP error envelope, который видит агент, не меняется,
 а упавший вызов всё равно попадает в аудит.
+### Кто такой actor: подключение или пользователь
+
+По умолчанию actor — это MCP-**подключение**: id сессии плюс имя клиента из
+хендшейка. Для сервера с одним агентом этого достаточно, но на вопрос «какой
+пользователь что сделал» так не ответить: идентификаторы сессий умирают вместе
+с TTL хранилища, а записи аудита живут годами.
+
+На аутентифицированном эндпоинте свяжите `AuditActorResolverInterface`:
+
+| Резолвер | Actor |
+|---|---|
+| `ClientAuditActorResolver` (по умолчанию) | тип `mcp-client`, id = id сессии, name = клиент из хендшейка |
+| `IdentityAuditActorResolver` | тип `mcp-user`, id = id аутентифицированного пользователя (гость → откат к подключению) |
+| собственный | что угодно, что известно приложению |
+
+`IdentityAuditActorResolver` берёт идентичность из `IdentitySourceInterface`
+пакета
+[rasuvaeff/yii3-mcp-rbac-bridge](https://github.com/rasuvaeff/yii3-mcp-rbac-bridge)
+— того же источника, которым пользуются его RBAC- и session-binding-интерцепторы,
+поэтому аудит и решение о доступе не могут разойтись в том, кто вызывает.
+Пакет указан в `suggest`, а не в жёстких зависимостях; установить его и
+связать резолвер — одна строка:
+
+```php
+// config/common/di/mcp.php
+use Rasuvaeff\Yii3McpAuditLogBridge\AuditActorResolverInterface;
+use Rasuvaeff\Yii3McpAuditLogBridge\IdentityAuditActorResolver;
+
+return [
+    AuditActorResolverInterface::class => IdentityAuditActorResolver::class,
+];
+```
+
+Без rbac-bridge реализуйте интерфейс поверх той идентичности, что уже есть
+в приложении:
+
+```php
+final readonly class CurrentUserActorResolver implements AuditActorResolverInterface
+{
+    public function __construct(private CurrentUser $currentUser) {}
+
+    public function resolve(ToolCallContext $context, ?string $sessionId, ?string $clientName): AuditActor
+    {
+        return $this->currentUser->isGuest()
+            ? new AuditActor(type: 'mcp-client', id: $sessionId, name: $clientName)
+            : new AuditActor(type: 'mcp-user', id: $this->currentUser->getId(), name: $clientName);
+    }
+}
+```
+
+Связь с подключением не теряется, когда actor становится пользователем:
+`mcp.session`, `mcp.client` и `mcp.client_id` (идентичность клиента из
+endpoint-секрета yii3-mcp — её, в отличие от имени из хендшейка, клиент не
+может подделать) пишутся в changes при каждом вызове.
+
+Резолвер, бросающий исключение, роняет вызов — событие не будет записано под
+неправильным actor'ом.
+
 ### Маскировка деликатных аргументов
 Каждый аргумент инструмента становится собственным полем изменения, поэтому
  `SensitiveValueMasker` `AuditLogger` применяется к аргументам точно так же, как и к любым другим проверяемым значениям
@@ -61,13 +120,17 @@ use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 ### Ручная проводка
 ```php
 $interceptor = new AuditTrailInterceptor(
-    auditLogger: $auditLogger,     // Rasuvaeff\Yii3AuditLog\AuditLogger
-    actorType: 'mcp-client',       // default
-    subjectType: 'mcp-tool',       // default
+    auditLogger: $auditLogger,                            // Rasuvaeff\Yii3AuditLog\AuditLogger
+    actorResolver: new ClientAuditActorResolver('agent'), // по умолчанию: ClientAuditActorResolver('mcp-client')
+    subjectType: 'mcp-tool',                              // по умолчанию
 );
 
 $server = $factory->create($tools, $configurators, [$interceptor]);
 ```
+
+Переход с 1.x: вторым аргументом конструктора был `string $actorType`.
+Передавайте вместо него `new ClientAuditActorResolver($actorType)` — поведение
+то же, проводка через params/DI по FQCN не меняется.
 ## Безопасность
 - Аргументы маскируются **только именем поля** (маскировщик не является рекурсивным):
  секрет, вложенный в значение аргумента массива, сохраняется как есть. Сохраняйте секреты
@@ -81,7 +144,8 @@ $server = $factory->create($tools, $configurators, [$interceptor]);
 
  | Скрипт | Шоу | Нужен сервер? |
  |--------|-------|:-------------:|
- | [`audit-trail.php`](examples/audit-trail.php) | Вызов инструмента записывается в журнал аудита в памяти с замаскированным аргументом `пароль` | нет | @@ЛИНИЯ@@
+ | [`audit-trail.php`](examples/audit-trail.php) | Вызов инструмента записывается в журнал аудита в памяти с замаскированным аргументом `password` | нет |
+ | [`user-actor.php`](examples/user-actor.php) | Тот же вызов, записанный на аутентифицированного пользователя вместо подключения, плюс откат для гостя | нет |
 ## Разработка
 На хосте нет PHP/Composer — запустите в Docker через образ `composer:2`:
 

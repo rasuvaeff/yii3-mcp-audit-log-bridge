@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge;
 
-use Rasuvaeff\Yii3AuditLog\AuditActor;
 use Rasuvaeff\Yii3AuditLog\AuditChange;
 use Rasuvaeff\Yii3AuditLog\AuditChangeSet;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
@@ -16,9 +15,16 @@ use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallInterceptorInterface;
 use Throwable;
 
 /**
- * Records every MCP tools/call into the audit trail: which agent (client
- * info from the initialize handshake), which tool, the arguments, the
- * outcome and the duration.
+ * Records every MCP tools/call into the audit trail: who called, which tool,
+ * the arguments, the outcome and the duration.
+ *
+ * WHO is decided by an {@see AuditActorResolverInterface}. The default
+ * {@see ClientAuditActorResolver} credits the MCP connection (session id +
+ * handshake client name); an authenticated endpoint binds a resolver that
+ * credits the user, which is the only way the journal still answers "which
+ * user did what" after the session store dropped the session. Either way the
+ * connection itself is recorded as `mcp.session` / `mcp.client` /
+ * `mcp.client_id`, so it is never lost.
  *
  * Each tool argument becomes its own change field, so the AuditLogger's
  * SensitiveValueMasker masks arguments named `password`, `token` etc. the
@@ -40,7 +46,7 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
 
     public function __construct(
         private AuditLogger $auditLogger,
-        private string $actorType = 'mcp-client',
+        private AuditActorResolverInterface $actorResolver = new ClientAuditActorResolver(),
         private string $subjectType = 'mcp-tool',
     ) {}
 
@@ -75,15 +81,25 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
         $changes[] = new AuditChange(field: 'mcp.outcome', oldValue: null, newValue: $outcome->value);
         $changes[] = new AuditChange(field: 'mcp.duration_ms', oldValue: null, newValue: intdiv(hrtime(true) - $startedAt, 1_000_000));
 
+        $sessionId = $context->session?->getId()->toRfc4122();
+        $clientName = $this->clientName($context);
+
+        // recorded even when the actor already carries them: a resolver that
+        // credits the user moves the connection out of actor_id, and the
+        // connection is what ties the event to a concrete agent run
+        $changes[] = new AuditChange(field: 'mcp.session', oldValue: null, newValue: $sessionId);
+        $changes[] = new AuditChange(field: 'mcp.client', oldValue: null, newValue: $clientName);
+
+        if ($context->clientId !== null) {
+            $changes[] = new AuditChange(field: 'mcp.client_id', oldValue: null, newValue: $context->clientId);
+        }
+
         if ($error !== null) {
             $changes[] = new AuditChange(field: 'mcp.error', oldValue: null, newValue: $error);
         }
 
-        $sessionId = $context->session?->getId()->toRfc4122();
-        $clientName = $this->clientName($context);
-
         $this->auditLogger->log(
-            actor: new AuditActor(type: $this->actorType, id: $sessionId, name: $clientName),
+            actor: $this->actorResolver->resolve($context, $sessionId, $clientName),
             action: self::ACTION,
             subject: new AuditSubject(type: $this->subjectType, id: $context->toolName),
             changes: new AuditChangeSet($changes),

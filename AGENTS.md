@@ -7,12 +7,15 @@ Guidance for AI agents working on this package. Read before changing code.
 Bridge between `rasuvaeff/yii3-mcp` and `rasuvaeff/yii3-audit-log`
 (namespace `Rasuvaeff\Yii3McpAuditLogBridge`): `AuditTrailInterceptor`
 implements yii3-mcp's `ToolCallInterceptorInterface` and records every MCP
-`tools/call` as one audit event — actor from the session's initialize
-handshake, subject = tool name, each argument as its own change field
-(masked by field name via the AuditLogger's `SensitiveValueMasker`), plus
-`mcp.outcome` / `mcp.duration_ms` / `mcp.error`.
+`tools/call` as one audit event — actor decided by an
+`AuditActorResolverInterface`, subject = tool name, each argument as its own
+change field (masked by field name via the AuditLogger's
+`SensitiveValueMasker`), plus `mcp.outcome` / `mcp.duration_ms` /
+`mcp.session` / `mcp.client` / `mcp.client_id` / `mcp.error`.
 
-Public API: `AuditTrailInterceptor` (that's it — one class).
+Public API: `AuditTrailInterceptor`, `AuditActorResolverInterface`,
+`ClientAuditActorResolver` (default — credits the MCP connection),
+`IdentityAuditActorResolver` (credits the authenticated user).
 
 ## Golden rules
 
@@ -46,6 +49,20 @@ are on Packagist — a plain `composer install` works, no path repos needed.
 
 ## Invariants & gotchas
 
+- **The connection stays in the change set no matter who the actor is.**
+  `mcp.session` / `mcp.client` / `mcp.client_id` are written on every call so
+  that a resolver crediting the user does not sever the link to the concrete
+  agent run. Never make them conditional on the resolver.
+- **A resolver exception must propagate.** Writing the event under a fallback
+  actor would silently misattribute an audited action; the call fails loudly
+  instead (the tool has already run — that is deliberate and tested).
+- **`IdentityAuditActorResolver` is the package's only optional integration.**
+  `rasuvaeff/yii3-mcp-rbac-bridge` is `require-dev` + `suggest`, never
+  `require` — audit must not drag RBAC in. Because its interface is not in
+  `require`, `composer-require-checker` runs with
+  `composer-require-checker.json`, whitelisting exactly one symbol
+  (`Rasuvaeff\Yii3McpRbacBridge\IdentitySourceInterface`). Never widen that
+  list to silence an unrelated failure — add the missing dependency instead.
 - Masking is field-name based and NOT recursive: only top-level arguments
   named like the masker keys are masked. Document, don't "fix" silently —
   recursive masking belongs to yii3-audit-log.
