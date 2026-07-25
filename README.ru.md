@@ -169,6 +169,27 @@ $server = $factory->create($tools, $configurators, [$interceptor]);
 | [`audit-trail.php`](examples/audit-trail.php) | Вызов инструмента, записанный в аудит-лог в памяти, с замаскированным аргументом `password` | нет |
 | [`user-actor.php`](examples/user-actor.php) | Тот же вызов, записанный на аутентифицированного пользователя вместо подключения, плюс откат для гостя | нет |
 
+### Анализаторы зависимостей
+
+Это leaf-пакет, который root-приложение выбирает через config-plugin, поэтому в
+autoloaded source может законно не быть прямой ссылки на его классы. Сохраняйте
+direct dependency: backend или bridge выбирает приложение, а не core-пакет.
+Исключение Composer Dependency Analyser должно быть ограничено этим пакетом:
+
+```php
+use ShipMonk\ComposerDependencyAnalyser\Config\Configuration;
+use ShipMonk\ComposerDependencyAnalyser\Config\ErrorType;
+
+return (new Configuration())->ignoreErrorsOnPackage(
+    'rasuvaeff/yii3-mcp-audit-log-bridge',
+    [ErrorType::UNUSED_DEPENDENCY],
+);
+```
+
+`composer-require-checker` ищет используемые, но не объявленные symbols, а не
+unused packages, поэтому для такой config-only зависимости suppression ему не
+нужен.
+
 ## Разработка
 
 PHP/Composer на хосте нет — всё через Docker, образ `composer:2`:

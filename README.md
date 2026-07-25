@@ -164,6 +164,26 @@ See [examples/](examples/) — runs offline.
 | [`audit-trail.php`](examples/audit-trail.php) | A tool call recorded into an in-memory audit log, with a masked `password` argument | no |
 | [`user-actor.php`](examples/user-actor.php) | The same call credited to the authenticated user instead of the connection, plus the guest fallback | no |
 
+### Dependency analysers
+
+This leaf package is selected by the root application through config-plugin and
+may legitimately have no class reference in an autoloaded source directory. Keep
+the direct dependency: the application, not a core package, selects the backend
+or bridge. Scope the Composer Dependency Analyser exception to this package:
+
+```php
+use ShipMonk\ComposerDependencyAnalyser\Config\Configuration;
+use ShipMonk\ComposerDependencyAnalyser\Config\ErrorType;
+
+return (new Configuration())->ignoreErrorsOnPackage(
+    'rasuvaeff/yii3-mcp-audit-log-bridge',
+    [ErrorType::UNUSED_DEPENDENCY],
+);
+```
+
+`composer-require-checker` detects used but undeclared symbols, not unused
+packages, so this config-only dependency needs no require-checker suppression.
+
 ## Development
 
 No PHP/Composer on the host — run in Docker via the `composer:2` image:
