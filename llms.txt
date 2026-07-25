@@ -18,7 +18,12 @@ composer require rasuvaeff/yii3-mcp-audit-log-bridge
   SensitiveValueMasker; not recursive): top-level argument `password` =>
   `***`, a secret nested in an array value is stored as-is.
 - Call metadata change-fields are prefixed `mcp.` (`mcp.outcome`,
-  `mcp.duration_ms`, `mcp.error`) so they never collide with argument names.
+  `mcp.duration_ms`, `mcp.session`, `mcp.client`, `mcp.client_id`,
+  `mcp.error`) so they never collide with argument names.
+- WHO the event credits is an AuditActorResolverInterface decision. Default =
+  the MCP connection. The connection is ALWAYS in the change set, so a
+  user-crediting resolver loses nothing.
+- A resolver that throws propagates: no event is written under a wrong actor.
 
 ## API reference
 
@@ -26,21 +31,40 @@ composer require rasuvaeff/yii3-mcp-audit-log-bridge
 use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 
 new AuditTrailInterceptor(
-    auditLogger: $auditLogger,    // Rasuvaeff\Yii3AuditLog\AuditLogger (writer+clock+masker)
-    actorType: 'mcp-client',      // default
-    subjectType: 'mcp-tool',      // default
+    auditLogger: $auditLogger,                             // Rasuvaeff\Yii3AuditLog\AuditLogger (writer+clock+masker)
+    actorResolver: new ClientAuditActorResolver('mcp-client'), // default
+    subjectType: 'mcp-tool',                               // default
 );
 // implements Rasuvaeff\Yii3Mcp\Interceptor\ToolCallInterceptorInterface
+
+// Actor resolvers (namespace Rasuvaeff\Yii3McpAuditLogBridge):
+interface AuditActorResolverInterface
+{
+    // AuditActor: who the event is credited to
+    public function resolve(ToolCallContext $context, ?string $sessionId, ?string $clientName): AuditActor;
+}
+
+new ClientAuditActorResolver(actorType: 'mcp-client');   // default: the connection
+new IdentityAuditActorResolver(                          // the authenticated user
+    identitySource: $source,        // Rasuvaeff\Yii3McpRbacBridge\IdentitySourceInterface (suggest)
+    userActorType: 'mcp-user',      // default
+    guestActorType: 'mcp-client',   // default; guest keeps the session id
+);
+
+// Bind in the application:
+// AuditActorResolverInterface::class => IdentityAuditActorResolver::class
 
 // Via config-plugin params of yii3-mcp (DI resolves the FQCN):
 // 'rasuvaeff/yii3-mcp' => ['interceptors' => [AuditTrailInterceptor::class]]
 
 // Event mapping:
-// actor    = AuditActor(actorType, id: session uuid|null, name: 'client-name version'|null)
+// actor    = AuditActorResolverInterface::resolve(); default AuditActor('mcp-client', id: session uuid|null, name: 'client-name version'|null)
 // action   = 'mcp.tools.call'
 // subject  = AuditSubject(subjectType, id: tool name)
 // changes  = each argument as its own field (old=null, new=value)
 //            + 'mcp.outcome' ('success'|'rejected'|'error', yii3-mcp CallOutcome) + 'mcp.duration_ms' (int)
+//            + 'mcp.session' (uuid|null) + 'mcp.client' (name|null)
+//            + 'mcp.client_id' (endpoint-secret identity, only when non-null)
 //            + 'mcp.error' (exception message, only on failure)
 // metadata = AuditMetadata(requestId: session uuid, userAgent: client name)
 ```

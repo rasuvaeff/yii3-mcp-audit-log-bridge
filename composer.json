@@ -33,12 +33,16 @@
         "infection/infection": "^0.33",
         "maglnet/composer-require-checker": "^4.17",
         "nyholm/psr7": "^1.8",
+        "rasuvaeff/yii3-mcp-rbac-bridge": "^1.0",
         "rector/rector": "^2.4",
         "roave/backward-compatibility-check": "^8.0",
         "testo/bridge-infection": "^0.1.6",
         "testo/testo": "^0.10.25",
         "vimeo/psalm": "^6.16",
         "yiisoft/test-support": "^3.0"
+    },
+    "suggest": {
+        "rasuvaeff/yii3-mcp-rbac-bridge": "Credit the authenticated user instead of the MCP connection by binding IdentityAuditActorResolver"
     },
     "autoload": {
         "psr-4": {
@@ -85,7 +89,7 @@
             "@rector",
             "@bc-check"
         ],
-        "require-checker": "composer-require-checker check composer.json",
+        "require-checker": "composer-require-checker check --config-file=composer-require-checker.json composer.json",
         "test": "testo --suite=Unit",
         "test:coverage": "testo --suite=Unit --coverage --coverage-clover=build/coverage.xml",
         "test:coverage:ci": "testo --suite=Unit --coverage-clover=build/coverage.xml"

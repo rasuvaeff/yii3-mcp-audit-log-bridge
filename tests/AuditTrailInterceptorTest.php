@@ -16,9 +16,13 @@ use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3Mcp\McpServerFactory;
 use Rasuvaeff\Yii3Mcp\Testing\McpTester;
 use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
+use Rasuvaeff\Yii3McpAuditLogBridge\ClientAuditActorResolver;
+use Rasuvaeff\Yii3McpAuditLogBridge\IdentityAuditActorResolver;
+use Rasuvaeff\Yii3McpAuditLogBridge\Tests\Support\FakeIdentitySource;
 use Rasuvaeff\Yii3McpAuditLogBridge\Tests\Support\FakeSession;
 use Rasuvaeff\Yii3McpAuditLogBridge\Tests\Support\FixedClock;
 use Rasuvaeff\Yii3McpAuditLogBridge\Tests\Support\OrderTool;
+use Rasuvaeff\Yii3McpAuditLogBridge\Tests\Support\ThrowingActorResolver;
 use RuntimeException;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -180,9 +184,13 @@ final class AuditTrailInterceptorTest
         Assert::true($duration < 10_000);
     }
 
-    public function actorAndSubjectTypesAreConfigurable(): void
+    public function actorComesFromTheResolverAndSubjectTypeIsConfigurable(): void
     {
-        $interceptor = new AuditTrailInterceptor($this->auditLogger(), actorType: 'agent', subjectType: 'operation');
+        $interceptor = new AuditTrailInterceptor(
+            $this->auditLogger(),
+            new ClientAuditActorResolver(actorType: 'agent'),
+            subjectType: 'operation',
+        );
         $context = new ToolCallContext(toolName: 'x', arguments: []);
 
         $interceptor->intercept($context, static fn(): string => 'ok');
@@ -190,6 +198,81 @@ final class AuditTrailInterceptorTest
         $event = $this->singleEvent();
         Assert::same($event->getActor()->getType(), 'agent');
         Assert::same($event->getSubject()->getType(), 'operation');
+    }
+
+    public function resolverDecidesTheActorWhileTheConnectionStaysInTheChangeSet(): void
+    {
+        $interceptor = new AuditTrailInterceptor(
+            $this->auditLogger(),
+            new IdentityAuditActorResolver(new FakeIdentitySource('42')),
+        );
+        $session = new FakeSession(['client_info' => ['name' => 'claude-code', 'version' => '2.0']]);
+        $context = new ToolCallContext(toolName: 'x', arguments: [], session: $session, clientId: 'ci-runner');
+
+        $interceptor->intercept($context, static fn(): string => 'ok');
+
+        $event = $this->singleEvent();
+        Assert::same($event->getActor()->getType(), 'mcp-user');
+        Assert::same($event->getActor()->getId(), '42');
+
+        // the connection left actor_id — it must not leave the record
+        $changes = $this->changesByField($event);
+        Assert::same($changes['mcp.session'], $event->getMetadata()?->getRequestId());
+        Assert::same($changes['mcp.client'], 'claude-code 2.0');
+        Assert::same($changes['mcp.client_id'], 'ci-runner');
+    }
+
+    public function clientIdIsOmittedWhenTheTransportCarriesNone(): void
+    {
+        $interceptor = new AuditTrailInterceptor($this->auditLogger());
+        $context = new ToolCallContext(toolName: 'x', arguments: []);
+
+        $interceptor->intercept($context, static fn(): string => 'ok');
+
+        $changes = $this->changesByField($this->singleEvent());
+        Assert::false(array_key_exists('mcp.client_id', $changes));
+        Assert::null($changes['mcp.session']);
+        Assert::null($changes['mcp.client']);
+    }
+
+    public function defaultResolverKeepsTheConnectionAsActorWithoutAnyBinding(): void
+    {
+        // the constructor default is what an application gets when its
+        // container has no AuditActorResolverInterface binding at all —
+        // yiisoft/di falls back to the parameter default, so wiring the
+        // interceptor by FQCN alone must keep working
+        $parameter = (new \ReflectionClass(AuditTrailInterceptor::class))->getConstructor()?->getParameters()[1] ?? null;
+
+        Assert::notNull($parameter);
+        Assert::true($parameter->isDefaultValueAvailable());
+        Assert::instanceOf($parameter->getDefaultValue(), ClientAuditActorResolver::class);
+
+        (new AuditTrailInterceptor($this->auditLogger()))->intercept(
+            new ToolCallContext(toolName: 'x', arguments: []),
+            static fn(): string => 'ok',
+        );
+
+        Assert::same($this->singleEvent()->getActor()->getType(), 'mcp-client');
+    }
+
+    public function resolverFailureIsNotSwallowed(): void
+    {
+        $interceptor = new AuditTrailInterceptor($this->auditLogger(), new ThrowingActorResolver());
+        $caught = null;
+
+        try {
+            $interceptor->intercept(
+                new ToolCallContext(toolName: 'x', arguments: []),
+                static fn(): string => 'ok',
+            );
+        } catch (RuntimeException $caught) {
+        }
+
+        // the tool already ran — a broken resolver must fail loudly instead
+        // of writing the call under the wrong actor or dropping it silently
+        Assert::notNull($caught);
+        Assert::same($caught->getMessage(), 'identity backend down');
+        Assert::same(count($this->writer->getEvents()), 0);
     }
 
     private function auditLogger(): AuditLogger
