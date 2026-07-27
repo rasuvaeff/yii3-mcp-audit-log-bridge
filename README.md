@@ -22,7 +22,7 @@ answer to "what did the AI actually do in our system".
 | Requirement | Version |
 |-------------|---------|
 | PHP | 8.3 – 8.5 |
-| `rasuvaeff/yii3-mcp` | `^1.6` |
+| `rasuvaeff/yii3-mcp` | `^1.6 \|\| ^2.0` |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
 | `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.0`, optional — only for `IdentityAuditActorResolver` |
 
@@ -63,6 +63,21 @@ budget — a thrown `ToolCallException`), `error` an unexpected failure —
 so policy rejections are distinguishable from crashes in audit queries.
 Failures are recorded and **rethrown** — the MCP error envelope the agent
 sees is unchanged, and a call that fails is still audited.
+
+### What the audit trail does NOT see
+
+- **Budget rejections are invisible.** yii3-mcp auto-adds its
+  `SessionBudgetInterceptor` outermost — outside any interceptor you list. A
+  call rejected by the session budget never reaches the interceptor chain and
+  produces no audit event, so an exhausted budget looks like the agent going
+  silent, not like a burst of `rejected` rows.
+- **Session-ownership rejections are invisible** (yii3-mcp `^2.0`). The core
+  binds every session to the MCP client that created it and rejects a call
+  against a foreign or ownerless session (the SDK-shaped 404 from `McpAction`,
+  `SessionOwnershipException` from `InterceptingReferenceHandler`) **before**
+  the interceptor chain runs. An ownership-rejected call produces no audit
+  event — hijack attempts show up only in the application/web-server logs,
+  not in the audit trail.
 
 ### Who is the actor: the connection or the user
 
@@ -117,6 +132,12 @@ The connection is never lost when the actor becomes a user: `mcp.session`,
 `mcp.client` and `mcp.client_id` (the endpoint-secret client identity from
 yii3-mcp, which the client cannot forge, unlike the handshake name) are
 recorded as change fields on every call.
+
+On yii3-mcp `^2.0` that attribution is even stronger: the core makes the
+session owner immutable — set once at `initialize`, never reassigned — so the
+`mcp.client_id` recorded on a session's audit events can no longer be
+re-assigned mid-session. This bridge needs no code for that; the guarantee
+comes from the core.
 
 A resolver that throws fails the call loudly — the event is not written under
 a wrong actor.
