@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.1.0 — 2026-07-27
+
+- Compatibility with `rasuvaeff/yii3-mcp` 2.0: the constraint is widened to
+  `^1.6 || ^2.0`. No code changes — the consumed API
+  (`ToolCallInterceptorInterface`, `ToolCallContext`, `CallOutcome`) is
+  unchanged in 2.0, and `ToolCallContext::$clientId` is still populated (now
+  from the immutable session owner). See the core's
+  [UPGRADE.md](https://github.com/rasuvaeff/yii3-mcp/blob/master/UPGRADE.md).
+- Docs: new "What the audit trail does NOT see" section — session-budget
+  rejections and (on core `^2.0`) session-ownership rejections happen before
+  the interceptor chain and produce no audit event; hijack attempts are
+  visible only in application/web-server logs.
+- Docs: on core `^2.0` the session owner is immutable, so the `mcp.client_id`
+  recorded on a session's audit events can no longer be re-assigned
+  mid-session — a guarantee from the core, no bridge code involved.
+
 ## 2.0.1 — 2026-07-25
 
 - Document the exact Composer Dependency Analyser exclusion required when this
