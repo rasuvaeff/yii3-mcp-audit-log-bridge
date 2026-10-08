@@ -18,7 +18,8 @@ use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
  * The session id and the formatted client name are passed in because the
  * interceptor already derived them — a resolver that falls back to the
  * connection (a guest call, say) does not have to re-read the handshake.
- * Both are null on transports without a session.
+ * The session id is null without a session and on the stateless
+ * 2026-07-28 era, whose per-request session names nothing.
  *
  * Resolvers must not swallow failures: an exception propagates and the
  * tools/call fails loudly rather than being recorded under the wrong actor.

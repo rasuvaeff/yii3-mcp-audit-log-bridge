@@ -22,7 +22,8 @@ answer to "what did the AI actually do in our system".
 | Requirement | Version |
 |-------------|---------|
 | PHP | 8.3 – 8.5 |
-| `rasuvaeff/yii3-mcp` | `^1.6 \|\| ^2.0` |
+| `rasuvaeff/yii3-mcp` | `^4.0` (for yii3-mcp 1.6–3.x use bridge `^2.1`) |
+| `mcp/sdk` | `~0.8.1` (the client info type) |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
 | `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.0`, optional — only for `IdentityAuditActorResolver` |
 
@@ -51,11 +52,17 @@ configurator-registered handlers — produces one audit event:
 
 | Audit field | Value |
 |---|---|
-| actor | decided by an `AuditActorResolverInterface`; by default type `mcp-client`, id = MCP session id, name = client from the initialize handshake (`claude-code 1.2`) |
+| actor | decided by an `AuditActorResolverInterface`; by default type `mcp-client`, id = MCP session id (the client id where there is none — see below), name = the client the call named itself as (`claude-code 1.2`) |
 | action | `mcp.tools.call` |
 | subject | type `mcp-tool` (configurable), id = tool name |
 | changes | one field per tool argument + `mcp.outcome` (`success`/`rejected`/`error`), `mcp.duration_ms`, `mcp.session`, `mcp.client`, `mcp.client_id` (when the transport carries one), `mcp.error` (message, on failure) |
 | metadata | requestId = session id, userAgent = client name |
+
+On the stateless MCP era (2026-07-28, served by yii3-mcp 4.0 by default) the
+SDK hands every call a throwaway session whose id names nothing: there
+`mcp.session` and requestId are `null`, the default actor id falls back to the
+client id the endpoint secret resolved (`mcp.client_id`), and the client name
+comes from the request's `_meta` instead of `initialize`.
 
 `mcp.outcome` follows yii3-mcp's shared `CallOutcome` vocabulary:
 `rejected` marks a client-visible refusal (rate limit, RBAC, session
@@ -90,7 +97,7 @@ On an authenticated endpoint, bind an `AuditActorResolverInterface`:
 
 | Resolver | Actor |
 |---|---|
-| `ClientAuditActorResolver` (default) | type `mcp-client`, id = session id, name = handshake client |
+| `ClientAuditActorResolver` (default) | type `mcp-client`, id = session id (else client id), name = the client |
 | `IdentityAuditActorResolver` | type `mcp-user`, id = the authenticated user id (guest → falls back to the connection) |
 | your own | anything the application knows |
 

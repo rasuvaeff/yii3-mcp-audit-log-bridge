@@ -27,6 +27,19 @@ final class ClientAuditActorResolverTest
         Assert::same($actor->getName(), 'claude-code 2.0');
     }
 
+    /**
+     * No session to name the connection (stateless era, stdio): the client
+     * id is the next best identity. A session, when there is one, wins.
+     */
+    public function fallsBackToTheClientIdWithoutASession(): void
+    {
+        $resolver = new ClientAuditActorResolver();
+        $context = new ToolCallContext(toolName: 'x', arguments: [], clientId: 'ci-runner');
+
+        Assert::same($resolver->resolve($context, sessionId: null, clientName: null)->getId(), 'ci-runner');
+        Assert::same($resolver->resolve($context, sessionId: 'session-1', clientName: null)->getId(), 'session-1');
+    }
+
     public function actorTypeIsConfigurable(): void
     {
         $actor = (new ClientAuditActorResolver(actorType: 'agent'))->resolve(
