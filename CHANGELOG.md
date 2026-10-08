@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Requires `rasuvaeff/yii3-mcp` `^4.0` and `mcp/sdk` `~0.8.1`; applications on
+  yii3-mcp 1.6–3.x keep using bridge `^2.1` (#11).
+- The client name is read through `ToolCallContext::clientInfo()`, so it is
+  recorded on both MCP eras — from `initialize` or from the request `_meta`.
+- On the stateless MCP era (2026-07-28) the per-request session id is not
+  recorded: `mcp.session` and the metadata requestId are `null`, and
+  `ClientAuditActorResolver` credits the client id (`mcp.client_id`) instead.
+  It does the same on any transport without a session.
+
 ## 2.1.1 — 2026-10-07
 
 - Allow `rasuvaeff/yii3-mcp` `^3.0` alongside the existing constraints — the

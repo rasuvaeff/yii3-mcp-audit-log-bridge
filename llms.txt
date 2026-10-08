@@ -58,7 +58,9 @@ new IdentityAuditActorResolver(                          // the authenticated us
 // 'rasuvaeff/yii3-mcp' => ['interceptors' => [AuditTrailInterceptor::class]]
 
 // Event mapping:
-// actor    = AuditActorResolverInterface::resolve(); default AuditActor('mcp-client', id: session uuid|null, name: 'client-name version'|null)
+// actor    = AuditActorResolverInterface::resolve(); default AuditActor('mcp-client', id: session uuid ?? client id ?? null, name: 'client-name version'|null)
+// stateless MCP era (2026-07-28): the session is a per-request throwaway => session uuid = null
+//   (mcp.session, requestId); client name from the request _meta (ToolCallContext::clientInfo()).
 // action   = 'mcp.tools.call'
 // subject  = AuditSubject(subjectType, id: tool name)
 // changes  = each argument as its own field (old=null, new=value)

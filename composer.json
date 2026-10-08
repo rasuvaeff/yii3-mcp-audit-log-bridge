@@ -24,13 +24,14 @@
     },
     "require": {
         "php": "8.3 - 8.5",
+        "mcp/sdk": "~0.8.1",
         "rasuvaeff/yii3-audit-log": "^1.0",
-        "rasuvaeff/yii3-mcp": "^1.6 || ^2.0 || ^3.0"
+        "rasuvaeff/yii3-mcp": "^4.0"
     },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.51",
         "friendsofphp/php-cs-fixer": "^3.95",
-        "infection/infection": "^0.33",
+        "infection/infection": "^0.35",
         "maglnet/composer-require-checker": "^4.17",
         "nyholm/psr7": "^1.8",
         "rasuvaeff/yii3-mcp-rbac-bridge": "^1.0",

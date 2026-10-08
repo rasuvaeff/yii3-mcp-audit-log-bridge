@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge;
 
+use Mcp\Schema\Implementation;
 use Rasuvaeff\Yii3AuditLog\AuditChange;
 use Rasuvaeff\Yii3AuditLog\AuditChangeSet;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
@@ -81,7 +82,9 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
         $changes[] = new AuditChange(field: 'mcp.outcome', oldValue: null, newValue: $outcome->value);
         $changes[] = new AuditChange(field: 'mcp.duration_ms', oldValue: null, newValue: intdiv(hrtime(true) - $startedAt, 1_000_000));
 
-        $sessionId = $context->session?->getId()->toRfc4122();
+        // the stateless 2026-07-28 era hands every call a throwaway session:
+        // its id names nothing and would make each call a new "connection"
+        $sessionId = $context->isStateless() ? null : $context->session?->getId()->toRfc4122();
         $clientName = $this->clientName($context);
 
         // recorded even when the actor already carries them: a resolver that
@@ -107,18 +110,18 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
         );
     }
 
+    /**
+     * From `initialize` on the handshake era, from the request's `_meta` on
+     * the stateless one.
+     */
     private function clientName(ToolCallContext $context): ?string
     {
-        $info = $context->getClientInfo();
-        $name = $info['name'] ?? null;
+        $info = $context->clientInfo();
 
-        if (!is_string($name) || $name === '') {
+        if (!$info instanceof Implementation || $info->name === '') {
             return null;
         }
 
-        /** @var mixed $version */
-        $version = $info['version'] ?? null;
-
-        return is_string($version) && $version !== '' ? $name . ' ' . $version : $name;
+        return $info->version !== '' ? $info->name . ' ' . $info->version : $info->name;
     }
 }

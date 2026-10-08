@@ -53,6 +53,11 @@ are on Packagist — a plain `composer install` works, no path repos needed.
   `mcp.session` / `mcp.client` / `mcp.client_id` are written on every call so
   that a resolver crediting the user does not sever the link to the concrete
   agent run. Never make them conditional on the resolver.
+- **No session id on the stateless era.** yii3-mcp 4.0 serves MCP 2026-07-28,
+  where the SDK hands every call a throwaway session: its id names nothing
+  and would make each call a new "connection". `$context->isStateless()` →
+  `mcp.session`/requestId null; `ClientAuditActorResolver` then credits the
+  client id. Client names come from `$context->clientInfo()` (both eras).
 - **A resolver exception must propagate.** Writing the event under a fallback
   actor would silently misattribute an audited action; the call fails loudly
   instead (the tool has already run — that is deliberate and tested).

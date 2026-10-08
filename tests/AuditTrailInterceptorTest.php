@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Rasuvaeff\Yii3McpAuditLogBridge\Tests;
 
 use Mcp\Exception\ToolCallException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Implementation;
 use Mcp\Server;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Stateless\RequestMeta;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Rasuvaeff\Yii3AuditLog\AuditEvent;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
@@ -149,8 +153,7 @@ final class AuditTrailInterceptorTest
     public function clientNameWithoutVersionIsBareName(): void
     {
         $interceptor = new AuditTrailInterceptor($this->auditLogger());
-        $session = new FakeSession(['client_info' => ['name' => 'claude']]);
-        $context = new ToolCallContext(toolName: 'x', arguments: [], session: $session);
+        $context = new ToolCallContext(toolName: 'x', arguments: [], session: $this->statelessSession(new Implementation(name: 'claude', version: '')));
 
         $interceptor->intercept($context, static fn(): string => 'ok');
 
@@ -160,12 +163,57 @@ final class AuditTrailInterceptorTest
     public function emptyClientNameBecomesNull(): void
     {
         $interceptor = new AuditTrailInterceptor($this->auditLogger());
-        $session = new FakeSession(['client_info' => ['name' => '', 'version' => '1.0']]);
-        $context = new ToolCallContext(toolName: 'x', arguments: [], session: $session);
+        $context = new ToolCallContext(toolName: 'x', arguments: [], session: $this->statelessSession(new Implementation(name: '', version: '1.0')));
 
         $interceptor->intercept($context, static fn(): string => 'ok');
 
         Assert::null($this->singleEvent()->getActor()->getName());
+    }
+
+    /**
+     * The stateless 2026-07-28 era hands every call a throwaway session: its
+     * id names nothing, so no session is recorded and the default actor falls
+     * back to the client id; the client name comes from the request _meta.
+     */
+    public function statelessCallRecordsNoSessionAndCreditsTheClientId(): void
+    {
+        $interceptor = new AuditTrailInterceptor($this->auditLogger());
+        $context = new ToolCallContext(
+            toolName: 'x',
+            arguments: [],
+            session: $this->statelessSession(new Implementation(name: 'agent', version: '2.0')),
+            clientId: 'ci-runner',
+        );
+
+        $interceptor->intercept($context, static fn(): string => 'ok');
+
+        $event = $this->singleEvent();
+        $changes = $this->changesByField($event);
+        Assert::null($changes['mcp.session']);
+        Assert::null($event->getMetadata()?->getRequestId());
+        Assert::same($event->getActor()->getId(), 'ci-runner');
+        Assert::same($event->getActor()->getName(), 'agent 2.0');
+        Assert::same($event->getMetadata()?->getUserAgent(), 'agent 2.0');
+    }
+
+    /**
+     * End to end over the stateless era: the client named in _meta is
+     * recorded, no session id is.
+     */
+    public function statelessEraEndToEnd(): void
+    {
+        $factory = new Psr17Factory();
+        (new McpTester($this->server(), $factory, $factory, $factory, ProtocolVersion::V2026_07_28))
+            ->callTool('order.status', ['orderId' => '1', 'password' => 'x']);
+
+        $event = $this->singleEvent();
+        Assert::null($this->changesByField($event)['mcp.session']);
+        Assert::same($event->getMetadata()?->getUserAgent(), 'mcp-tester 1.0');
+    }
+
+    private function statelessSession(Implementation $client): FakeSession
+    {
+        return new FakeSession([RequestMeta::class => new RequestMeta('2026-07-28', new ClientCapabilities(), $client)]);
     }
 
     public function durationReflectsWallTimeOfTheWrappedChain(): void

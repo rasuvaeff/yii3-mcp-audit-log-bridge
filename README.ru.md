@@ -23,7 +23,8 @@
 | Требование | Версия |
 |-------------|---------|
 | PHP | 8.3 – 8.5 |
-| `rasuvaeff/yii3-mcp` | `^1.6 \|\| ^2.0` |
+| `rasuvaeff/yii3-mcp` | `^4.0` (для yii3-mcp 1.6–3.x — bridge `^2.1`) |
+| `mcp/sdk` | `~0.8.1` (тип client info) |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
 | `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.0`, опционально — только для `IdentityAuditActorResolver` |
 
@@ -52,11 +53,17 @@ use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 
 | Поле аудита | Значение |
 |---|---|
-| actor | определяется через `AuditActorResolverInterface`; по умолчанию тип `mcp-client`, id = идентификатор MCP-сессии, name = клиент из initialize-хендшейка (`claude-code 1.2`) |
+| actor | определяется через `AuditActorResolverInterface`; по умолчанию тип `mcp-client`, id = идентификатор MCP-сессии (client id, если сессии нет — см. ниже), name = клиент, которым назвался вызов (`claude-code 1.2`) |
 | action | `mcp.tools.call` |
 | subject | тип `mcp-tool` (настраиваемый), id = имя инструмента |
 | changes | по полю на каждый аргумент инструмента + `mcp.outcome` (`success`/`rejected`/`error`), `mcp.duration_ms`, `mcp.session`, `mcp.client`, `mcp.client_id` (если транспорт его несёт), `mcp.error` (сообщение, при сбое) |
 | metadata | requestId = идентификатор сессии, userAgent = имя клиента |
+
+В stateless-эре MCP (2026-07-28, yii3-mcp 4.0 обслуживает её по умолчанию)
+SDK даёт каждому вызову одноразовую сессию, чей id ничего не называет: там
+`mcp.session` и requestId — `null`, id актора по умолчанию берётся из client
+id, который определил endpoint secret (`mcp.client_id`), а имя клиента — из
+`_meta` запроса, а не из `initialize`.
 
 `mcp.outcome` следует единому словарю `CallOutcome` из yii3-mcp:
 `rejected` — видимый клиенту отказ (rate limit, RBAC, session budget —
@@ -91,7 +98,7 @@ use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 
 | Резолвер | Actor |
 |---|---|
-| `ClientAuditActorResolver` (по умолчанию) | тип `mcp-client`, id = id сессии, name = клиент из хендшейка |
+| `ClientAuditActorResolver` (по умолчанию) | тип `mcp-client`, id = id сессии (иначе client id), name = клиент |
 | `IdentityAuditActorResolver` | тип `mcp-user`, id = id аутентифицированного пользователя (гость → откат к подключению) |
 | собственный | всё, что известно приложению |
 
