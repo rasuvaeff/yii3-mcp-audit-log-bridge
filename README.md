@@ -22,10 +22,10 @@ answer to "what did the AI actually do in our system".
 | Requirement | Version |
 |-------------|---------|
 | PHP | 8.3 – 8.5 |
-| `rasuvaeff/yii3-mcp` | `^4.0` (for yii3-mcp 1.6–3.x use bridge `^2.1`) |
-| `mcp/sdk` | `~0.8.1` (the client info type) |
+| `rasuvaeff/yii3-mcp` | `^5.0` (for yii3-mcp 4.x use bridge `^2.2`, for 1.6–3.x `^2.1`) |
+| `mcp/sdk` | `~0.10.0` (the client info type) |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
-| `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.0`, optional — only for `IdentityAuditActorResolver` |
+| `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.4`, optional — only for `IdentityAuditActorResolver` |
 
 ## Installation
 
@@ -175,9 +175,12 @@ the params/DI wiring by FQCN is unaffected.
 
 ## Security
 
-- Arguments are masked by **field name only** (the masker is not recursive):
-  a secret nested inside an array argument value is stored as-is. Keep
-  secrets in top-level arguments or extend the masker key list.
+- Arguments are masked at **every depth**: values first go through
+  yii3-mcp's `ArgumentMasker` (the same one the telemetry bridge uses), so a
+  secret nested inside an argument — an array or, since SDK 0.10, an object
+  — is stored as `***`; the AuditLogger's `SensitiveValueMasker` then masks
+  top-level field names as before. Pass `argumentMasker: new
+  ArgumentMasker([...])` to change the key list.
 - The audit event contains tool arguments — treat the audit storage with the
   same care as the data the tools access.
 - The interceptor adds no failure mode to tool execution: audit-write errors

@@ -9,8 +9,8 @@ Bridge between `rasuvaeff/yii3-mcp` and `rasuvaeff/yii3-audit-log`
 implements yii3-mcp's `ToolCallInterceptorInterface` and records every MCP
 `tools/call` as one audit event — actor decided by an
 `AuditActorResolverInterface`, subject = tool name, each argument as its own
-change field (masked by field name via the AuditLogger's
-`SensitiveValueMasker`), plus `mcp.outcome` / `mcp.duration_ms` /
+change field (values masked at any depth by yii3-mcp's `ArgumentMasker`,
+field names by the AuditLogger's `SensitiveValueMasker`), plus `mcp.outcome` / `mcp.duration_ms` /
 `mcp.session` / `mcp.client` / `mcp.client_id` / `mcp.error`.
 
 Public API: `AuditTrailInterceptor`, `AuditActorResolverInterface`,
@@ -68,9 +68,12 @@ are on Packagist — a plain `composer install` works, no path repos needed.
   `composer-require-checker.json`, whitelisting exactly one symbol
   (`Rasuvaeff\Yii3McpRbacBridge\IdentitySourceInterface`). Never widen that
   list to silence an unrelated failure — add the missing dependency instead.
-- Masking is field-name based and NOT recursive: only top-level arguments
-  named like the masker keys are masked. Document, don't "fix" silently —
-  recursive masking belongs to yii3-audit-log.
+- Argument VALUES go through yii3-mcp's `ArgumentMasker` before they become
+  change fields (since 2.3.0): the AuditLogger's `SensitiveValueMasker` matches
+  field names only and every argument is one field, so a secret nested inside
+  an argument (an array, or a `\stdClass` since SDK 0.10) used to be recorded
+  in clear. It is the same masker the telemetry bridge uses — the two bridges
+  must never drift apart. `masksSecretsNestedInsideAnArgument` is the guard.
 - `mcp.duration_ms` is measured with `hrtime()` around `$next()` including
   downstream interceptors — it is the wall time of the wrapped chain.
 - The audit event is written on BOTH success and failure paths; a failing

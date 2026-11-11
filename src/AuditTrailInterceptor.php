@@ -10,6 +10,7 @@ use Rasuvaeff\Yii3AuditLog\AuditChangeSet;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
 use Rasuvaeff\Yii3AuditLog\AuditMetadata;
 use Rasuvaeff\Yii3AuditLog\AuditSubject;
+use Rasuvaeff\Yii3Mcp\Interceptor\ArgumentMasker;
 use Rasuvaeff\Yii3Mcp\Interceptor\CallOutcome;
 use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallInterceptorInterface;
@@ -29,7 +30,10 @@ use Throwable;
  *
  * Each tool argument becomes its own change field, so the AuditLogger's
  * SensitiveValueMasker masks arguments named `password`, `token` etc. the
- * same way it masks any other audited value. Call metadata fields are
+ * same way it masks any other audited value. That masker only sees field
+ * names, so the values first go through yii3-mcp's ArgumentMasker (the same
+ * one the telemetry bridge uses): a secret nested inside an argument — an
+ * array or, since SDK 0.10, a \stdClass — is masked at any depth. Call metadata fields are
  * prefixed with `mcp.` to stay clear of argument names.
  *
  * `mcp.outcome` follows the core's shared {@see CallOutcome} vocabulary:
@@ -49,6 +53,7 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
         private AuditLogger $auditLogger,
         private AuditActorResolverInterface $actorResolver = new ClientAuditActorResolver(),
         private string $subjectType = 'mcp-tool',
+        private ArgumentMasker $argumentMasker = new ArgumentMasker(),
     ) {}
 
     #[\Override]
@@ -75,8 +80,8 @@ final readonly class AuditTrailInterceptor implements ToolCallInterceptorInterfa
         $changes = [];
 
         /** @var mixed $value */
-        foreach ($context->arguments as $name => $value) {
-            $changes[] = new AuditChange(field: $name, oldValue: null, newValue: $value);
+        foreach ($this->argumentMasker->mask($context->arguments) as $name => $value) {
+            $changes[] = new AuditChange(field: (string) $name, oldValue: null, newValue: $value);
         }
 
         $changes[] = new AuditChange(field: 'mcp.outcome', oldValue: null, newValue: $outcome->value);

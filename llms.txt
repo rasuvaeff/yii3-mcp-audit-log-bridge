@@ -14,9 +14,10 @@ composer require rasuvaeff/yii3-mcp-audit-log-bridge
 - One audit event per tools/call (all registration paths: attribute tools,
   OpenAPI bridge, configurators). Failures are recorded AND rethrown — the
   MCP error envelope is unchanged.
-- Arguments are masked by FIELD NAME only (AuditLogger's
-  SensitiveValueMasker; not recursive): top-level argument `password` =>
-  `***`, a secret nested in an array value is stored as-is.
+- Arguments are masked at every depth: values go through yii3-mcp's
+  ArgumentMasker first (arrays and \stdClass, same masker as the telemetry
+  bridge), then the AuditLogger's SensitiveValueMasker masks top-level field
+  names. Custom keys: `argumentMasker: new ArgumentMasker([...])`.
 - Call metadata change-fields are prefixed `mcp.` (`mcp.outcome`,
   `mcp.duration_ms`, `mcp.session`, `mcp.client`, `mcp.client_id`,
   `mcp.error`) so they never collide with argument names.
