@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge\Tests;
 
-use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
-use Mcp\Server;
+use Mcp\Schema\RequestMeta;
+use Mcp\Server\Exception\ToolCallException;
+use Mcp\Server\Server;
 use Mcp\Server\Session\InMemorySessionStore;
-use Mcp\Server\Stateless\RequestMeta;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Rasuvaeff\Yii3AuditLog\AuditEvent;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
@@ -70,6 +70,30 @@ final class AuditTrailInterceptorTest
 
         $changes = $this->changesByField($this->singleEvent());
         Assert::same($changes['password'], '***');
+        Assert::same($changes['orderId'], '42');
+    }
+
+    /**
+     * The AuditLogger's masker sees field names only: a secret nested inside
+     * an argument (a \stdClass since SDK 0.10, or an array) is masked by
+     * yii3-mcp's ArgumentMasker before the value is recorded.
+     */
+    public function masksSecretsNestedInsideAnArgument(): void
+    {
+        $interceptor = new AuditTrailInterceptor($this->auditLogger());
+
+        $interceptor->intercept(
+            new ToolCallContext(toolName: 'order.status', arguments: [
+                'orderId' => '42',
+                'credentials' => (object) ['login' => 'a', 'password' => 'p@ss'],
+                'tokens' => [['token' => 't1']],
+            ]),
+            static fn(): string => 'paid',
+        );
+
+        $changes = $this->changesByField($this->singleEvent());
+        Assert::same(json_encode($changes['credentials']), '{"login":"a","password":"***"}');
+        Assert::same($changes['tokens'], [['token' => '***']]);
         Assert::same($changes['orderId'], '42');
     }
 

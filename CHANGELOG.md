@@ -5,8 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 2.3.0 — 2026-11-11
 
+- Requires `rasuvaeff/yii3-mcp` `^5.0` and `mcp/sdk` `~0.10.0` (yii3-mcp 5.0
+  moved to SDK 0.10 for GHSA-f4rf-6ghj-mhr6). SDK 0.10 moved its classes, so
+  this release cannot also serve yii3-mcp 4.x: stay on 2.2 for it. The
+  optional `rasuvaeff/yii3-mcp-rbac-bridge` is `^1.4` (its yii3-mcp 5 line).
+- Fixed: a secret nested inside a tool argument was recorded in clear. The
+  AuditLogger's `SensitiveValueMasker` matches field names only, and every
+  argument is one field, so `{"credentials": {"password": …}}` (an array, or
+  a `\stdClass` since SDK 0.10) kept the password. Argument values now go
+  through yii3-mcp's `ArgumentMasker` first — the same masker the telemetry
+  bridge uses; `AuditTrailInterceptor` takes it as a new optional last
+  argument.
+- Psalm 7 (`vimeo/psalm` `^7.0`, dev only).
+- CI: the tag check in `release.yml` and the narrower mutation filter from the
+  monorepo template; the BC job ignores the mcp/sdk 0.8 advisory while
+  installing the 2.2 baseline.
 - Mutation testing now counts code the tests execute without naming it in `#[Covers]`
   (`infection --with-uncovered`), with `PublicVisibility` off and signature defaults ignored
   as in the monorepo template; overall MSI stays 92% (the two known equivalents). No `src/` or test changes.
