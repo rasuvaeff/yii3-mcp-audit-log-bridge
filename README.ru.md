@@ -22,7 +22,7 @@
 
 | Требование | Версия |
 |-------------|---------|
-| PHP | 8.3 – 8.5 |
+| PHP | 8.3 – 8.6 |
 | `rasuvaeff/yii3-mcp` | `^5.0` (для yii3-mcp 4.x — bridge `^2.2`, для 1.6–3.x — `^2.1`) |
 | `mcp/sdk` | `~0.10.0` (тип client info) |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
