@@ -23,10 +23,11 @@
 | Требование | Версия |
 |-------------|---------|
 | PHP | 8.3 – 8.6 |
-| `rasuvaeff/yii3-mcp` | `^5.0` (для yii3-mcp 4.x — bridge `^2.2`, для 1.6–3.x — `^2.1`) |
+| `rasuvaeff/mcp` | `^0.1` |
+| `rasuvaeff/yii3-mcp` | `^6.0` в приложении Yii3 (для 5.x — bridge `^2.3`) |
 | `mcp/sdk` | `~0.10.0` (тип client info) |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
-| `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.4`, опционально — только для `IdentityAuditActorResolver` |
+| `rasuvaeff/yii3-mcp-rbac-bridge` | `^2.0`, опционально — только для `IdentityAuditActorResolver` |
 
 ## Установка
 

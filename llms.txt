@@ -36,7 +36,7 @@ new AuditTrailInterceptor(
     actorResolver: new ClientAuditActorResolver('mcp-client'), // default
     subjectType: 'mcp-tool',                               // default
 );
-// implements Rasuvaeff\Yii3Mcp\Interceptor\ToolCallInterceptorInterface
+// implements Rasuvaeff\Mcp\Interceptor\ToolCallInterceptorInterface
 
 // Actor resolvers (namespace Rasuvaeff\Yii3McpAuditLogBridge):
 interface AuditActorResolverInterface

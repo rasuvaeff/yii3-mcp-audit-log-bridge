@@ -26,7 +26,7 @@
         "php": "8.3 - 8.6",
         "mcp/sdk": "~0.10.0",
         "rasuvaeff/yii3-audit-log": "^1.0",
-        "rasuvaeff/yii3-mcp": "^5.0"
+        "rasuvaeff/mcp": "^0.1"
     },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.51",
@@ -34,7 +34,7 @@
         "infection/infection": "^0.35",
         "maglnet/composer-require-checker": "^4.17",
         "nyholm/psr7": "^1.8",
-        "rasuvaeff/yii3-mcp-rbac-bridge": "^1.4",
+        "rasuvaeff/yii3-mcp-rbac-bridge": "^2.0",
         "rector/rector": "^2.4",
         "roave/backward-compatibility-check": "^8.0",
         "testo/bridge-infection": "^0.1.6",
@@ -97,5 +97,8 @@
         "test": "testo --suite=Unit",
         "test:coverage": "testo --suite=Unit --coverage --coverage-clover=build/coverage.xml",
         "test:coverage:ci": "testo --suite=Unit --coverage-clover=build/coverage.xml"
+    },
+    "conflict": {
+        "rasuvaeff/yii3-mcp": "<6.0"
     }
 }

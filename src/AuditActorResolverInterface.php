@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge;
 
+use Rasuvaeff\Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3AuditLog\AuditActor;
-use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
 
 /**
  * Decides WHO the audit trail credits for a tools/call. The shipped

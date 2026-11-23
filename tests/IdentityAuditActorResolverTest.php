@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge\Tests;
 
-use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
+use Rasuvaeff\Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3McpAuditLogBridge\IdentityAuditActorResolver;
 use Rasuvaeff\Yii3McpAuditLogBridge\Tests\Support\FakeIdentitySource;
 use Testo\Assert;

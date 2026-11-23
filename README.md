@@ -22,10 +22,11 @@ answer to "what did the AI actually do in our system".
 | Requirement | Version |
 |-------------|---------|
 | PHP | 8.3 – 8.6 |
-| `rasuvaeff/yii3-mcp` | `^5.0` (for yii3-mcp 4.x use bridge `^2.2`, for 1.6–3.x `^2.1`) |
+| `rasuvaeff/mcp` | `^0.1` |
+| `rasuvaeff/yii3-mcp` | `^6.0` in a Yii3 application (for 5.x use bridge `^2.3`) |
 | `mcp/sdk` | `~0.10.0` (the client info type) |
 | `rasuvaeff/yii3-audit-log` | `^1.0` |
-| `rasuvaeff/yii3-mcp-rbac-bridge` | `^1.4`, optional — only for `IdentityAuditActorResolver` |
+| `rasuvaeff/yii3-mcp-rbac-bridge` | `^2.0`, optional — only for `IdentityAuditActorResolver` |
 
 ## Installation
 
