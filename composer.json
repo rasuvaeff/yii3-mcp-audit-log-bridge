@@ -25,8 +25,8 @@
     "require": {
         "php": "8.3 - 8.6",
         "mcp/sdk": "~0.10.0",
-        "rasuvaeff/yii3-audit-log": "^1.0",
-        "rasuvaeff/mcp": "^0.1"
+        "rasuvaeff/mcp": "^0.1",
+        "rasuvaeff/yii3-audit-log": "^1.0"
     },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.51",
