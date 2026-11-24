@@ -7,7 +7,7 @@ namespace Rasuvaeff\Yii3McpAuditLogBridge\Benchmarks;
 use Rasuvaeff\Yii3AuditLog\AuditLogger;
 use Rasuvaeff\Yii3AuditLog\NullAuditWriter;
 use Rasuvaeff\Yii3AuditLog\SensitiveValueMasker;
-use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
+use Rasuvaeff\Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3McpAuditLogBridge\AuditTrailInterceptor;
 use Rasuvaeff\Yii3McpAuditLogBridge\Benchmarks\Support\SystemClock;
 use Testo\Bench;

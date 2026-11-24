@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3McpAuditLogBridge;
 
+use Rasuvaeff\Mcp\Interceptor\ToolCallContext;
 use Rasuvaeff\Yii3AuditLog\AuditActor;
-use Rasuvaeff\Yii3Mcp\Interceptor\ToolCallContext;
 
 /**
  * Default resolver: the actor is the MCP connection — id = session id (the
